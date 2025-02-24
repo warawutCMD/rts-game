@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES6",                     // เป้าหมายให้ใช้ ES6
+    "module": "CommonJS",                 // ใช้ CommonJS modules
+    "outDir": "./dist",                   // ไฟล์ที่คอมไพล์จะออกไปอยู่ที่โฟลเดอร์ dist
+    "rootDir": "./src",                   // ไฟล์ TypeScript จะอยู่ในโฟลเดอร์ src
+    "esModuleInterop": true,              // สำหรับการนำเข้าโมดูล
+    "skipLibCheck": true,                  // ข้ามการตรวจสอบ library types
+    "moduleResolution": "node",
+    "typeRoots": ["node_modules/@types"]
+  },
+  "include": [
+    "src/**/*.ts"                          // รวมไฟล์ TypeScript ทั้งหมดในโฟลเดอร์ src
+  ],
+  "exclude": [
+    "node_modules"                         // ไม่รวม node_modules
+  ]
+}
