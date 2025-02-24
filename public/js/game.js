@@ -9,20 +9,36 @@ class Unit {
         this.name = name;
         this.x = x;
         this.y = y;
-        this.size = 20; // ขนาดยูนิต
-        this.selected = false; // กำหนดสถานะการเลือก
+        this.size = 20;
+        this.selected = false;
     }
 
     draw() {
-        ctx.fillStyle = this.selected ? "red" : "blue"; // ถ้าเลือก -> สีแดง
+        ctx.fillStyle = this.selected ? "red" : "blue";
         ctx.fillRect(this.x, this.y, this.size, this.size);
+    }
+
+    moveTo(x, y) {
+        this.x = x - this.size / 2;
+        this.y = y - this.size / 2;
     }
 }
 
 let units = [];
 let selectionBox = { x: 0, y: 0, width: 0, height: 0, active: false };
+let isShiftPressed = false;
 
-// 📌 ฟังก์ชันสร้างยูนิตแบบสุ่ม
+// 📌 Event Key Down (กด Shift)
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Shift") isShiftPressed = true;
+});
+
+// 📌 Event Key Up (ปล่อย Shift)
+document.addEventListener("keyup", (event) => {
+    if (event.key === "Shift") isShiftPressed = false;
+});
+
+// 📌 ฟังก์ชันสร้างยูนิต
 function createUnit() {
     const x = Math.random() * (canvas.width - 20);
     const y = Math.random() * (canvas.height - 20);
@@ -33,6 +49,8 @@ function createUnit() {
 
 // 📌 Event Mouse Down (เริ่มลาก)
 canvas.addEventListener("mousedown", (event) => {
+    if (event.button === 2) return; // ถ้าคลิกขวา ไม่ต้องลาก Selection Box
+
     selectionBox.x = event.clientX - canvas.offsetLeft;
     selectionBox.y = event.clientY - canvas.offsetTop;
     selectionBox.width = 0;
@@ -55,21 +73,42 @@ canvas.addEventListener("mouseup", () => {
     drawGame();
 });
 
-// 📌 ฟังก์ชันตรวจจับยูนิตที่อยู่ใน Selection Box
+// 📌 ฟังก์ชันเลือกยูนิต
 function selectUnits() {
     units.forEach((unit) => {
-        if (
+        const insideSelection =
             unit.x + unit.size > selectionBox.x &&
             unit.x < selectionBox.x + selectionBox.width &&
             unit.y + unit.size > selectionBox.y &&
-            unit.y < selectionBox.y + selectionBox.height
-        ) {
-            unit.selected = true;
-        } else {
-            unit.selected = false;
+            unit.y < selectionBox.y + selectionBox.height;
+
+        if (insideSelection) {
+            if (isShiftPressed) {
+                unit.selected = true; // ถ้ากด Shift -> เลือกเพิ่ม
+            } else {
+                unit.selected = true; // เลือกใหม่ทั้งหมด
+            }
+        } else if (!isShiftPressed) {
+            unit.selected = false; // ถ้าไม่กด Shift -> ยกเลิกการเลือกตัวอื่น
         }
     });
 }
+
+// 📌 Event Mouse Right Click (คลิกขวาเพื่อเคลื่อนที่)
+canvas.addEventListener("contextmenu", (event) => {
+    event.preventDefault(); // ป้องกันเมนูคลิกขวา
+    const targetX = event.clientX - canvas.offsetLeft;
+    const targetY = event.clientY - canvas.offsetTop;
+
+    // เคลื่อนที่เฉพาะยูนิตที่ถูกเลือก
+    units.forEach((unit) => {
+        if (unit.selected) {
+            unit.moveTo(targetX, targetY);
+        }
+    });
+
+    drawGame();
+});
 
 // 📌 ฟังก์ชันวาดเกม
 function drawGame() {
@@ -90,5 +129,7 @@ function drawGame() {
     }
 }
 
-// เรียกครั้งแรกให้วาดเกม
+// ป้องกันเมนูคลิกขวาบน Canvas
+canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+
 drawGame();
