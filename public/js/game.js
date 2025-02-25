@@ -4,132 +4,89 @@ const ctx = canvas.getContext("2d");
 canvas.width = 800;
 canvas.height = 400;
 
-class Unit {
-    constructor(name, x, y) {
-        this.name = name;
+class Building {
+    constructor(type, x, y, isGhost = false) {
+        this.type = type;
         this.x = x;
         this.y = y;
-        this.size = 20;
-        this.selected = false;
+        this.width = 50;
+        this.height = 50;
+        this.isGhost = isGhost; // กำหนดว่าคือแบบร่างจางๆ หรือไม่
+
+        this.icon = new Image();
+        switch (type) {
+            case "Barracks":
+                this.icon.src = "images/barracks.png";
+                break;
+            case "Stable":
+                this.icon.src = "images/stable.png";
+                break;
+            case "Archery Range":
+                this.icon.src = "images/archery-range.png";
+                break;
+        }
     }
 
     draw() {
-        ctx.fillStyle = this.selected ? "red" : "blue";
-        ctx.fillRect(this.x, this.y, this.size, this.size);
-    }
+        if (!this.icon.complete) return; // รอให้ไอคอนโหลดเสร็จ
 
-    moveTo(x, y) {
-        this.x = x - this.size / 2;
-        this.y = y - this.size / 2;
+        ctx.globalAlpha = this.isGhost ? 0.5 : 1.0; // โปร่งใส 50% ถ้าเป็นแบบร่าง
+        ctx.drawImage(this.icon, this.x, this.y, this.width, this.height);
+        // ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.globalAlpha = 1.0; // รีเซ็ตค่า opacity
     }
 }
 
-let units = [];
-let selectionBox = { x: 0, y: 0, width: 0, height: 0, active: false };
-let isShiftPressed = false;
+let buildings = [];
+let ghostBuilding = null; // เก็บอาคารแบบร่าง
 
-// 📌 Event Key Down (กด Shift)
-document.addEventListener("keydown", (event) => {
-    if (event.key === "Shift") isShiftPressed = true;
-});
-
-// 📌 Event Key Up (ปล่อย Shift)
-document.addEventListener("keyup", (event) => {
-    if (event.key === "Shift") isShiftPressed = false;
-});
-
-// 📌 ฟังก์ชันสร้างยูนิต
-function createUnit() {
-    const x = Math.random() * (canvas.width - 20);
-    const y = Math.random() * (canvas.height - 20);
-    const newUnit = new Unit("Soldier", x, y);
-    units.push(newUnit);
-    drawGame();
+// ✅ เปิดโหมดวางอาคาร (สร้างแบบร่าง)
+function startPlacingBuilding(type) {
+    ghostBuilding = new Building(type, 0, 0, true);
 }
 
-// 📌 Event Mouse Down (เริ่มลาก)
-canvas.addEventListener("mousedown", (event) => {
-    if (event.button === 2) return; // ถ้าคลิกขวา ไม่ต้องลาก Selection Box
-
-    selectionBox.x = event.clientX - canvas.offsetLeft;
-    selectionBox.y = event.clientY - canvas.offsetTop;
-    selectionBox.width = 0;
-    selectionBox.height = 0;
-    selectionBox.active = true;
-});
-
-// 📌 Event Mouse Move (ลากเมาส์)
+// ✅ อัปเดตตำแหน่งแบบร่างตามเมาส์
 canvas.addEventListener("mousemove", (event) => {
-    if (!selectionBox.active) return;
-    selectionBox.width = event.clientX - canvas.offsetLeft - selectionBox.x;
-    selectionBox.height = event.clientY - canvas.offsetTop - selectionBox.y;
-    drawGame();
-});
+    if (!ghostBuilding) return;
 
-// 📌 Event Mouse Up (ปล่อยเมาส์ -> เลือกยูนิต)
-canvas.addEventListener("mouseup", () => {
-    selectionBox.active = false;
-    selectUnits();
-    drawGame();
-});
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
 
-// 📌 ฟังก์ชันเลือกยูนิต
-function selectUnits() {
-    units.forEach((unit) => {
-        const insideSelection =
-            unit.x + unit.size > selectionBox.x &&
-            unit.x < selectionBox.x + selectionBox.width &&
-            unit.y + unit.size > selectionBox.y &&
-            unit.y < selectionBox.y + selectionBox.height;
-
-        if (insideSelection) {
-            if (isShiftPressed) {
-                unit.selected = true; // ถ้ากด Shift -> เลือกเพิ่ม
-            } else {
-                unit.selected = true; // เลือกใหม่ทั้งหมด
-            }
-        } else if (!isShiftPressed) {
-            unit.selected = false; // ถ้าไม่กด Shift -> ยกเลิกการเลือกตัวอื่น
-        }
-    });
-}
-
-// 📌 Event Mouse Right Click (คลิกขวาเพื่อเคลื่อนที่)
-canvas.addEventListener("contextmenu", (event) => {
-    event.preventDefault(); // ป้องกันเมนูคลิกขวา
-    const targetX = event.clientX - canvas.offsetLeft;
-    const targetY = event.clientY - canvas.offsetTop;
-
-    // เคลื่อนที่เฉพาะยูนิตที่ถูกเลือก
-    units.forEach((unit) => {
-        if (unit.selected) {
-            unit.moveTo(targetX, targetY);
-        }
-    });
+    ghostBuilding.x = x - ghostBuilding.width / 2; // จัดให้อยู่ตรงกลางเมาส์
+    ghostBuilding.y = y - ghostBuilding.height / 2;
 
     drawGame();
 });
 
-// 📌 ฟังก์ชันวาดเกม
+// ✅ คลิกเพื่อวางอาคารจริง
+canvas.addEventListener("click", (event) => {
+    if (!ghostBuilding) return;
+
+    // สร้างอาคารจริงโดยใช้ค่าจาก ghostBuilding
+    buildings.push(new Building(ghostBuilding.type, ghostBuilding.x, ghostBuilding.y));
+    ghostBuilding = null; // ลบแบบร่างออก
+    drawGame();
+});
+
+// ✅ วาดเกมทั้งหมด
 function drawGame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // วาดยูนิต
-    units.forEach(unit => unit.draw());
-
-    // วาด Selection Box
-    if (selectionBox.active) {
-        ctx.strokeStyle = "rgba(0, 0, 255, 0.5)";
-        ctx.strokeRect(
-            selectionBox.x,
-            selectionBox.y,
-            selectionBox.width,
-            selectionBox.height
-        );
-    }
+    buildings.forEach(building => building.draw()); // วาดอาคารจริง
+    if (ghostBuilding) ghostBuilding.draw(); // วาดแบบร่างจางๆ ถ้ามี
 }
 
-// ป้องกันเมนูคลิกขวาบน Canvas
-canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+// ✅ ยกเลิกการวางอาคาร
+function cancelBuildingPlacement() {
+    ghostBuilding = null; // ลบแบบร่างออก
+    drawGame(); // รีเฟรชหน้าจอ
+}
+
+// ✅ ฟังชั่นตรวจจับปุ่มกด (กด ESC เพื่อยกเลิก)
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+        cancelBuildingPlacement();
+    }
+});
 
 drawGame();
